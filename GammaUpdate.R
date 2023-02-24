@@ -11,7 +11,7 @@ library(gridExtra)
 #### FILE PATH INFO AND STUFF ####
 extension <- "~/Desktop/Memfault Test/BlackBox/Update1/"
 g_output_path <- "~/Desktop/Memfault Test/BlackBox/Update1 Graphs/"
-r_output_file  <- "~/Desktop/Memfault Test/BlackBox/results1.xlsx"
+r_output_file  <- "~/Desktop/Memfault Test/BlackBox/results2_2_NA.xlsx"
 #file with tester's names, UUIDS etc, will use config value to determine grill size...
 testerList <- "~/Desktop/Memfault Test/BlackBox/Gamma Testers with UUIDs copy.xlsx"
 testerList <- read_excel(testerList)
@@ -37,7 +37,7 @@ nBar <- barplot(names$n,
         las=2,
         col = "#69b3a2",
         ylab = 'Ressponses',
-        main = 'Gamma Update 1 - GeneralFeedback Sumbissions by Tester')
+        main = 'M2 Gamma Test - GeneralFeedback Sumbissions by Tester')
 
 #sentiment analysis of feedback?
 comments <- df_g$`What is your feedback?`
@@ -57,7 +57,7 @@ gBar <- barplot(sSums$colSums.s.,
         las = 2,
         col = brewer.pal(10, name = "Pastel2"),
         ylab = 'Count',
-        main = 'Gamma Test Update 1: General Feedback Sentiment Scores')
+        main = 'Gamma Test: General Feedback Sentiment Scores')
 
 trouble <- df_t$`Please describe your issue in depth:`
 t <- get_nrc_sentiment(trouble)
@@ -71,7 +71,7 @@ tBar <- barplot(tSums$colSums.t.,
         las = 2,
         col = brewer.pal(10, name = "Set3"),
         ylab = 'Count',
-        main = 'Gamma Test Update 1: Troubleshooting Sentiment Scores')
+        main = 'Gamma Test: Troubleshooting Sentiment Scores')
 
 #### LOOP THRU ALL FILES ####
 
@@ -88,6 +88,7 @@ results <- data.frame(matrix(nrow = 0, ncol = length(result_names)), stringsAsFa
 names(results) <- result_names
 
 i <- 1
+
 for(i in seq(from=1, to=length(files), by=1)) {
     x <- files[i]
     
@@ -169,10 +170,10 @@ for(i in seq(from=1, to=length(files), by=1)) {
     
     #check where there are any errors, and report that value.
   
-    #TODO- test with multiple errors in a cook?
+    #TODO- test with multiple errors in a cook?  Only checking the first one here...
     error_index <- which(error_vals$errors != 0, arr.ind = T)
     if(length(error_index) != 0){
-      output[22] <- error_vals$errors[error_index]
+      output[22] <- error_vals$errors[error_index[1]]
     }
     
     
@@ -259,7 +260,7 @@ for(i in seq(from=1, to=length(files), by=1)) {
     
     # do you want to label these?
     
-    #change axis to seconds.
+    #change axis to time
     
     cook_details$time <- as.POSIXct( cook_details$time, origin = "1970-01-01") 
     
@@ -323,8 +324,6 @@ for(i in seq(from=1, to=length(files), by=1)) {
       dpi = 300
     )
     }
-    
-    
 } #end main loop
 
 #merge names and Results so we can get a count of those...
@@ -349,11 +348,15 @@ nBar <- barplot(names$n,
                 las=2,
                 col = "#69b3a2",
                 ylab = 'Ressponses',
-                main = 'Gamma Update 1 - Number of Cooks By Tester')
+                main = 'Gamma Update 2 - Number of Cooks By Tester')
 
 #output Results Table to excel...
 write_xlsx(df_r, r_output_file)
 
+#output cook count...
+
+#FUCK you overrode the first one...
+write_xlsx(names, "~/Desktop/Memfault Test/BlackBox/update1_cookCounts.xlsx")
 
 
 #extra BS
