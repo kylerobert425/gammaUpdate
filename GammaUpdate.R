@@ -5,11 +5,13 @@ library(syuzhet)
 library(RColorBrewer)
 library(zoo)
 library(ggthemes)
-library(plotly)
+library(scales)
+library(gridExtra)
 
 #### FILE PATH INFO AND STUFF ####
 extension <- "~/Desktop/Memfault Test/BlackBox/Update1/"
-
+g_output_path <- "~/Desktop/Memfault Test/BlackBox/Update1 Graphs/"
+r_output_file  <- "~/Desktop/Memfault Test/BlackBox/results1.xlsx"
 #file with tester's names, UUIDS etc, will use config value to determine grill size...
 testerList <- "~/Desktop/Memfault Test/BlackBox/Gamma Testers with UUIDs copy.xlsx"
 testerList <- read_excel(testerList)
@@ -252,28 +254,118 @@ for(i in seq(from=1, to=length(files), by=1)) {
     
     #### PLOT ####
     
+    #ONLY IF Diag. data exists...
+    if(nrow(diag_data)>0){
+    
     # do you want to label these?
     
+    #change axis to seconds.
     
+    cook_details$time <- as.POSIXct( cook_details$time, origin = "1970-01-01") 
     
-    # grillGraph <- cook_details %>%
-    #   ggplot(aes(x=td)) +
-    #   theme_fivethirtyeight() +
-    #   #add labels
-    #   labs(title = paste(tester, "Gamma Test Cook", date) ,
-    #        #subtitle = "FW:01.00.09, CF:2204.a10",
-    #        x = "Time [sec]",
-    #        y = "Temp [˚F]") +
-    #   geom_line(aes(y=grill, color = pidout.x), size = 2, lineend = "round") +
-    #   geom_line(aes(y=set_temp), color = "darkred", size = 1, lineend = "round") 
-    #   #20 min spec line...(just was too busy with other labels for now)
-    #   #geom_vline(xintercept=20*60, linetype="dashed", color = "darkgreen") +
-    #   # geom_vline(xintercept = time_to_temp, linetype = "dashed", color = "yellowgreen") +
-    #   # geom_text(data = labeldf, aes(x, y, label = text), nudge_y = 15) 
-    #   # 
-    # grillGraph 
-    # 
+    grillGraph <- cook_details %>%
+      ggplot(aes(x=time)) +
+      #add labels
+      labs(title = paste(tester, "Gamma Test Cook", as.Date(cook_details$time[1], "MST")),
+           #subtitle = "FW:01.00.09, CF:2204.a10",
+           x = "Time",
+           y = "Temp [˚F]") +
+      #add lines
+      geom_line(aes(y=grill), color = "tomato3", size = 2, lineend = "round") +
+      geom_line(aes(y=set_temp, color = pidout.x), size = 1, lineend = "round") +
+      scale_y_continuous(breaks = seq(50, 550, by = 50))
+      
+    grillGraph 
+    # #plotly...
+    # library(plotly)
     # ggplotly(grillGraph)
-    # 
-        
+    
+    #component graphs:
+    compGraph <- cook_details %>% 
+      ggplot(aes(x=time)) + 
+      labs(title = "Grill Components During Cook",
+           x = "Time",
+           y = "Value",
+           color = "Legend") +
+      geom_line(aes(y = ac_ignitor_value, color = 'Ignitor' )) +
+      geom_line(aes(y = fan.x, color = 'Fan')) +
+      geom_line(aes(y = 4*auger.x, color = 'Auger (x4)')) +
+      geom_line(aes(y = 50*lid_open.x, color = 'Lid open (x50)'))
+    
+    compGraph <- compGraph + scale_color_brewer(palette = "Set1")
+    
+    #flame sensor value
+    flameGraph <- cook_details %>% 
+      ggplot(aes(x = time)) +
+      labs(title = "Flame Sensor Value",
+           x = "Time",
+           y = "Value",
+           color = "Legend") +
+      geom_line(aes(y = comb_flame_sensor_value, color = "Flame Sensor"))
+    
+    #flameGraph 
+    
+    comboGraph <- grid.arrange(grillGraph, compGraph, flameGraph, ncol = 1, nrow = 3, heights=c(1.5,1,1)) 
+    #ggplotly(comboGraph)
+    
+    #save graph image
+    
+    g_filename <- paste(uuid,cookid,date, sep = "_")
+    g_filename <- paste(g_output_path, g_filename, ".png", sep = "")
+    
+    g <- arrangeGrob(grillGraph, compGraph, flameGraph, ncol = 1, nrow = 3, heights=c(1.5,1,1))
+
+    ggsave(
+      file = g_filename,
+      plot = g,
+      height =  8.1,
+      width = 7.2,
+      dpi = 300
+    )
+    }
+    
+    
 } #end main loop
+
+#merge names and Results so we can get a count of those...
+
+names_uuids <- testerList %>%
+  select(`Gamma Tester`, `Grill UUID`)
+colnames(names_uuids) = c('tester', 'UUID')
+
+
+df_r <- left_join(results, names_uuids, by = "UUID")
+
+#get number of cooks by tester...
+# count of number of names...
+
+names <- df_r %>% count(tester)
+names <- names[order(-names$n),]
+
+par(mar=c(11,4,4,4))
+
+nBar <- barplot(names$n,
+                names.arg = names$tester,
+                las=2,
+                col = "#69b3a2",
+                ylab = 'Ressponses',
+                main = 'Gamma Update 1 - Number of Cooks By Tester')
+
+#output Results Table to excel...
+write_xlsx(df_r, r_output_file)
+
+
+
+#extra BS
+
+#for graphing
+#x-time scale
+#scale_x_datetime(labels=date_format("%H:%M"), breaks = "1 hour")
+#Other labels..
+#20 min - would need to do some tricky shit here if you use the datetime...
+#geom_vline(xintercept=20*60, linetype="dashed", color = "darkgreen")
+# geom_vline(xintercept = time_to_temp, linetype = "dashed", color = "yellowgreen") +
+# geom_text(data = labeldf, aes(x, y, label = text), nudge_y = 15)c
+#
+
+
