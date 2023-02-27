@@ -7,6 +7,8 @@ library(zoo)
 library(ggthemes)
 library(scales)
 library(gridExtra)
+library(wordcloud)
+library(tm)
 
 #### FILE PATH INFO AND STUFF ####
 extension <- "~/Desktop/Memfault Test/BlackBox/Update1/"
@@ -73,7 +75,47 @@ tBar <- barplot(tSums$colSums.t.,
         ylab = 'Count',
         main = 'Gamma Test: Troubleshooting Sentiment Scores')
 
-#### LOOP THRU ALL FILES ####
+#create word cloud from responses...
+#TODO make this a function...
+#convert to corpus
+feedback_c <- Corpus(VectorSource(comments))
+feedback_c <- feedback_c %>% tm_map(removePunctuation) %>% tm_map(stripWhitespace)
+feedback_c <- tm_map(feedback_c, content_transformer(tolower))
+feedback_c <- tm_map(feedback_c, removeWords, stopwords("english"))
+
+f_dtm <- TermDocumentMatrix(feedback_c)
+f_matrix <- as.matrix(f_dtm)
+f_words <- sort(rowSums(f_matrix), decreasing = TRUE)
+f_df <- data.frame(word = names(f_words), freq=f_words)
+
+#first word is "Grill" so not super interesting...
+f_df <- f_df[-1,]
+
+#do word cloud
+set.seed(1234)
+wordcloud(words = f_df$word, freq = f_df$freq, min.freq = 1, max.words = 200, random.order = FALSE,
+          rot.per = 0.35, colors = brewer.pal(8, "Dark2"))
+
+#same for troubleshooting:
+feedback_t <- Corpus(VectorSource(trouble))
+feedback_t <- feedback_t %>% tm_map(removePunctuation) %>% tm_map(stripWhitespace)
+feedback_t <- tm_map(feedback_t, content_transformer(tolower))
+feedback_t <- tm_map(feedback_t, removeWords, stopwords("english"))
+
+t_dtm <- TermDocumentMatrix(feedback_t)
+t_matrix <- as.matrix(t_dtm)
+t_words <- sort(rowSums(t_matrix), decreasing = TRUE)
+t_df <- data.frame(word = names(t_words), freq=t_words)
+
+#first word is "Grill" again so not super interesting...
+t_df <- t_df[-1,]
+
+#do word cloud
+wordcloud(words = t_df$word, freq = t_df$freq, min.freq = 1, max.words = 200, random.order = FALSE,
+          rot.per = 0.35, colors = brewer.pal(8, "Dark2"))
+
+
+#### AWS DATA ANALYSIS ####
 
 # Get all .xlsx files in the folder
 files <- list.files(path = extension, pattern = ".xlsx", full.names=TRUE, recursive=FALSE)
@@ -89,6 +131,7 @@ names(results) <- result_names
 
 i <- 1
 
+## Loop thru all the files ##
 for(i in seq(from=1, to=length(files), by=1)) {
     x <- files[i]
     
@@ -355,8 +398,14 @@ write_xlsx(df_r, r_output_file)
 
 #output cook count...
 
-#FUCK you overrode the first one...
+#FUCK, you overrode the first one...
+#TODO general improvement to the handling of filepaths especially for multiple "update #'s"...
 write_xlsx(names, "~/Desktop/Memfault Test/BlackBox/update1_cookCounts.xlsx")
+
+
+#group analysis of cook stats/results:
+
+
 
 
 #extra BS
